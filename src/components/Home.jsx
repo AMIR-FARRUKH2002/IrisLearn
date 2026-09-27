@@ -73,9 +73,14 @@ function Home({ quizzes, onSelectQuiz, onCreateNew, currentUserId }) {
           <p>No quizzes match your search.</p>
         </div>
       ) : (
-        <div className="quiz-grid">
+        <div className="quiz-list">
           {filteredQuizzes.map((quiz) => (
-            <QuizCard key={quiz.id} quiz={quiz} onSelect={onSelectQuiz} />
+            <QuizCard
+              key={quiz.id}
+              quiz={quiz}
+              onSelect={onSelectQuiz}
+              showCreator={scope === 'community'}
+            />
           ))}
         </div>
       )}

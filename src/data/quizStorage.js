@@ -7,6 +7,7 @@ function mapQuizRow(row) {
     description: row.description ?? '',
     publishedAt: new Date(row.published_at).getTime(),
     ownerId: row.owner_id,
+    ownerUsername: row.profiles?.username ?? null,
     questions: (row.questions ?? []).map((q) => ({
       id: q.id,
       type: q.type,
@@ -22,7 +23,7 @@ export async function loadQuizzes() {
   const { data, error } = await supabase
     .from('quizzes')
     .select(
-      'id, title, description, published_at, owner_id, questions(id, position, type, text, options, correct_index, answer)',
+      'id, title, description, published_at, owner_id, profiles(username), questions(id, position, type, text, options, correct_index, answer)',
     )
     .order('published_at', { ascending: false })
     .order('position', { foreignTable: 'questions', ascending: true })
