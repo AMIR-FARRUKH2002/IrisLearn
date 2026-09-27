@@ -9,27 +9,60 @@ function TakeQuiz({ quiz, onBack }) {
     setAnswers((a) => ({ ...a, [questionId]: optionIndex }))
   }
 
+  function toggleMultiselectAnswer(questionId, optionIndex) {
+    if (submitted) return
+    setAnswers((a) => {
+      const current = a[questionId] || []
+      const next = current.includes(optionIndex)
+        ? current.filter((i) => i !== optionIndex)
+        : [...current, optionIndex]
+      return { ...a, [questionId]: next }
+    })
+  }
+
   function enterAnswer(questionId, value) {
     if (submitted) return
     setAnswers((a) => ({ ...a, [questionId]: value }))
   }
 
-  function isCorrectAnswer(q) {
+  function scoreForQuestion(q) {
+    const given = answers[q.id]
     if (q.type === 'short-answer') {
-      const given = (answers[q.id] || '').trim().toLowerCase()
-      return given !== '' && given === q.answer.trim().toLowerCase()
+      const trimmed = (given || '').trim().toLowerCase()
+      return trimmed !== '' && trimmed === q.answer.trim().toLowerCase() ? 1 : 0
     }
-    return answers[q.id] === q.correctIndex
+    if (q.type === 'multiselect') {
+      const selected = given || []
+      const correctSet = new Set(q.correctIndexes)
+      const selectedSet = new Set(selected)
+      if (q.scoringMode === 'all-or-nothing') {
+        if (selectedSet.size !== correctSet.size) return 0
+        for (const i of selectedSet) if (!correctSet.has(i)) return 0
+        return 1
+      }
+      let correctSelected = 0
+      let incorrectSelected = 0
+      for (const i of selectedSet) {
+        if (correctSet.has(i)) correctSelected += 1
+        else incorrectSelected += 1
+      }
+      return Math.max(0, (correctSelected - incorrectSelected) / correctSet.size)
+    }
+    return given === q.correctIndex ? 1 : 0
   }
 
-  const score = quiz.questions.reduce(
-    (total, q) => (isCorrectAnswer(q) ? total + 1 : total),
-    0,
-  )
+  function isCorrectAnswer(q) {
+    return scoreForQuestion(q) >= 1
+  }
+
+  const rawScore = quiz.questions.reduce((total, q) => total + scoreForQuestion(q), 0)
+  const score = Math.round(rawScore * 100) / 100
 
   const allAnswered = quiz.questions.every((q) => {
     const a = answers[q.id]
-    return q.type === 'short-answer' ? Boolean(a && a.trim()) : a !== undefined
+    if (q.type === 'short-answer') return Boolean(a && a.trim())
+    if (q.type === 'multiselect') return Array.isArray(a) && a.length > 0
+    return a !== undefined
   })
 
   return (
@@ -59,6 +92,32 @@ function TakeQuiz({ quiz, onBack }) {
                 disabled={submitted}
                 placeholder="Type your answer"
               />
+            ) : q.type === 'multiselect' ? (
+              <div className="options-list">
+                {q.options.map((option, oIndex) => {
+                  const isSelected = (answers[q.id] || []).includes(oIndex)
+                  const isCorrectOption = q.correctIndexes.includes(oIndex)
+                  let optionClass = 'option-choice'
+                  if (submitted && isSelected) {
+                    optionClass += isCorrectOption ? ' correct' : ' incorrect'
+                  } else if (submitted && isCorrectOption) {
+                    optionClass += ' missed'
+                  } else if (isSelected) {
+                    optionClass += ' selected'
+                  }
+                  return (
+                    <button
+                      type="button"
+                      key={oIndex}
+                      className={optionClass}
+                      onClick={() => toggleMultiselectAnswer(q.id, oIndex)}
+                      disabled={submitted}
+                    >
+                      {option}
+                    </button>
+                  )
+                })}
+              </div>
             ) : (
               <div className="options-list">
                 {q.options.map((option, oIndex) => {
@@ -89,6 +148,13 @@ function TakeQuiz({ quiz, onBack }) {
             {submitted && q.type === 'short-answer' && (
               <p className={isCorrectAnswer(q) ? 'correct-text' : 'incorrect-text'}>
                 Correct answer: {q.answer}
+              </p>
+            )}
+            {submitted && q.type === 'multiselect' && (
+              <p className={isCorrectAnswer(q) ? 'correct-text' : 'incorrect-text'}>
+                {q.scoringMode === 'partial' && `Score: ${scoreForQuestion(q).toFixed(2)} of 1 — `}
+                Correct answer{q.correctIndexes.length === 1 ? '' : 's'}:{' '}
+                {q.correctIndexes.map((i) => q.options[i]).join(', ')}
               </p>
             )}
           </div>

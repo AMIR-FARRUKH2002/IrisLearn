@@ -2,6 +2,9 @@
 
 This React-based webapp is a tool for creating custom study-aids for learning. Students can create quizzes and tests called Practice Learning Modules for personal use or publish them to the catalog for other students to use. 
 
+## DESIGN
+
+IrisLearn allows users to create quizzes 
 
 ## Changes
 

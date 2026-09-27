@@ -6,6 +6,8 @@ const emptyQuestion = (type = 'multiple-choice') => ({
   text: '',
   options: ['', ''],
   correctIndex: 0,
+  correctIndexes: [],
+  scoringMode: 'all-or-nothing',
   answer: '',
 })
 
@@ -19,8 +21,10 @@ function CreateQuiz({ onPublish, onCancel, initialQuiz }) {
           id: q.id,
           type: q.type,
           text: q.text,
-          options: q.type === 'multiple-choice' ? q.options : ['', ''],
+          options: q.type === 'short-answer' ? ['', ''] : q.options,
           correctIndex: q.type === 'multiple-choice' ? q.correctIndex : 0,
+          correctIndexes: q.type === 'multiselect' ? q.correctIndexes : [],
+          scoringMode: q.type === 'multiselect' ? q.scoringMode : 'all-or-nothing',
           answer: q.type === 'short-answer' ? q.answer : '',
         }))
       : [emptyQuestion()],
@@ -54,8 +58,26 @@ function CreateQuiz({ onPublish, onCancel, initialQuiz }) {
       qs.map((q) => {
         if (q.id !== qId) return q
         const options = q.options.filter((_, i) => i !== index)
+        if (q.type === 'multiselect') {
+          const correctIndexes = q.correctIndexes
+            .filter((i) => i !== index)
+            .map((i) => (i > index ? i - 1 : i))
+          return { ...q, options, correctIndexes }
+        }
         const correctIndex = q.correctIndex >= options.length ? 0 : q.correctIndex
         return { ...q, options, correctIndex }
+      }),
+    )
+  }
+
+  function toggleCorrectOption(qId, index) {
+    setQuestions((qs) =>
+      qs.map((q) => {
+        if (q.id !== qId) return q
+        const correctIndexes = q.correctIndexes.includes(index)
+          ? q.correctIndexes.filter((i) => i !== index)
+          : [...q.correctIndexes, index]
+        return { ...q, correctIndexes }
       }),
     )
   }
@@ -81,6 +103,15 @@ function CreateQuiz({ onPublish, onCancel, initialQuiz }) {
       if (!q.text.trim()) return 'Every question needs question text.'
       if (q.type === 'short-answer') {
         if (!q.answer.trim()) return 'Every short answer question needs a correct answer.'
+      } else if (q.type === 'multiselect') {
+        const filledOptions = q.options.filter((o) => o.trim())
+        if (filledOptions.length < 2) return 'Every question needs at least two options.'
+        if (q.correctIndexes.length === 0) {
+          return 'Select at least one correct answer for every multi-select question.'
+        }
+        if (q.correctIndexes.some((i) => !q.options[i] || !q.options[i].trim())) {
+          return 'Correct answers must have option text filled in.'
+        }
       } else {
         const filledOptions = q.options.filter((o) => o.trim())
         if (filledOptions.length < 2) return 'Every question needs at least two options.'
@@ -104,17 +135,28 @@ function CreateQuiz({ onPublish, onCancel, initialQuiz }) {
       await onPublish({
         title: title.trim(),
         description: description.trim(),
-        questions: questions.map((q) =>
-          q.type === 'short-answer'
-            ? { id: q.id, type: q.type, text: q.text.trim(), answer: q.answer.trim() }
-            : {
-                id: q.id,
-                type: q.type,
-                text: q.text.trim(),
-                options: q.options.map((o) => o.trim()),
-                correctIndex: q.correctIndex,
-              },
-        ),
+        questions: questions.map((q) => {
+          if (q.type === 'short-answer') {
+            return { id: q.id, type: q.type, text: q.text.trim(), answer: q.answer.trim() }
+          }
+          if (q.type === 'multiselect') {
+            return {
+              id: q.id,
+              type: q.type,
+              text: q.text.trim(),
+              options: q.options.map((o) => o.trim()),
+              correctIndexes: q.correctIndexes,
+              scoringMode: q.scoringMode,
+            }
+          }
+          return {
+            id: q.id,
+            type: q.type,
+            text: q.text.trim(),
+            options: q.options.map((o) => o.trim()),
+            correctIndex: q.correctIndex,
+          }
+        }),
       })
     } catch (err) {
       setError(err.message)
@@ -170,7 +212,8 @@ function CreateQuiz({ onPublish, onCancel, initialQuiz }) {
                 value={q.type}
                 onChange={(e) => changeQuestionType(q.id, e.target.value)}
               >
-                <option value="multiple-choice">Multiple choice</option>
+                <option value="multiple-choice">Multiple choice (single answer)</option>
+                <option value="multiselect">Multiple choice (select all that apply)</option>
                 <option value="short-answer">Written text entry (short)</option>
               </select>
             </label>
@@ -195,6 +238,52 @@ function CreateQuiz({ onPublish, onCancel, initialQuiz }) {
                   placeholder="Enter the expected answer"
                 />
               </label>
+            ) : q.type === 'multiselect' ? (
+              <>
+                <div className="options-list">
+                  {q.options.map((option, oIndex) => (
+                    <div className="option-row" key={oIndex}>
+                      <input
+                        type="checkbox"
+                        checked={q.correctIndexes.includes(oIndex)}
+                        onChange={() => toggleCorrectOption(q.id, oIndex)}
+                        title="Mark as a correct answer"
+                      />
+                      <input
+                        type="text"
+                        value={option}
+                        onChange={(e) => updateOption(q.id, oIndex, e.target.value)}
+                        placeholder={`Option ${oIndex + 1}`}
+                      />
+                      {q.options.length > 2 && (
+                        <button
+                          type="button"
+                          className="btn-link"
+                          onClick={() => removeOption(q.id, oIndex)}
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button type="button" className="btn-secondary" onClick={() => addOption(q.id)}>
+                    + Add option
+                  </button>
+                </div>
+
+                <label className="field">
+                  <span>Scoring</span>
+                  <select
+                    value={q.scoringMode}
+                    onChange={(e) => updateQuestion(q.id, { scoringMode: e.target.value })}
+                  >
+                    <option value="all-or-nothing">
+                      All or nothing (every correct answer must be selected)
+                    </option>
+                    <option value="partial">Partial credit (points for each correct selection)</option>
+                  </select>
+                </label>
+              </>
             ) : (
               <div className="options-list">
                 {q.options.map((option, oIndex) => (

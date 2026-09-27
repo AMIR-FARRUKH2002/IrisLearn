@@ -18,7 +18,7 @@ create table if not exists quizzes (
   published_at timestamptz not null default now()
 );
 
-create type question_type as enum ('multiple-choice', 'short-answer');
+create type question_type as enum ('multiple-choice', 'short-answer', 'multiselect');
 
 create table if not exists questions (
   id uuid primary key default gen_random_uuid(),
@@ -28,11 +28,19 @@ create table if not exists questions (
   text text not null,
   options jsonb,
   correct_index int,
+  correct_indexes int[],
+  scoring_mode text check (scoring_mode in ('all-or-nothing', 'partial')),
   answer text,
   constraint question_shape check (
-    (type = 'multiple-choice' and options is not null and correct_index is not null and answer is null)
+    (type = 'multiple-choice' and options is not null and correct_index is not null
+      and answer is null and correct_indexes is null and scoring_mode is null)
     or
-    (type = 'short-answer' and answer is not null and options is null and correct_index is null)
+    (type = 'short-answer' and answer is not null and options is null
+      and correct_index is null and correct_indexes is null and scoring_mode is null)
+    or
+    (type = 'multiselect' and options is not null and correct_indexes is not null
+      and array_length(correct_indexes, 1) > 0 and scoring_mode is not null
+      and answer is null and correct_index is null)
   )
 );
 create index if not exists questions_quiz_id_position_idx on questions (quiz_id, position);

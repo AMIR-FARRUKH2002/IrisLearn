@@ -14,7 +14,9 @@ function mapQuizRow(row) {
       text: q.text,
       ...(q.type === 'short-answer'
         ? { answer: q.answer }
-        : { options: q.options, correctIndex: q.correct_index }),
+        : q.type === 'multiselect'
+          ? { options: q.options, correctIndexes: q.correct_indexes, scoringMode: q.scoring_mode }
+          : { options: q.options, correctIndex: q.correct_index }),
     })),
   }
 }
@@ -23,7 +25,7 @@ export async function loadQuizzes() {
   const { data, error } = await supabase
     .from('quizzes')
     .select(
-      'id, title, description, published_at, owner_id, profiles(username), questions(id, position, type, text, options, correct_index, answer)',
+      'id, title, description, published_at, owner_id, profiles(username), questions(id, position, type, text, options, correct_index, correct_indexes, scoring_mode, answer)',
     )
     .order('published_at', { ascending: false })
     .order('position', { foreignTable: 'questions', ascending: true })
@@ -49,8 +51,10 @@ export async function publishQuiz({ title, description, questions }) {
     position: index,
     type: q.type,
     text: q.text,
-    options: q.type === 'multiple-choice' ? q.options : null,
+    options: q.type === 'short-answer' ? null : q.options,
     correct_index: q.type === 'multiple-choice' ? q.correctIndex : null,
+    correct_indexes: q.type === 'multiselect' ? q.correctIndexes : null,
+    scoring_mode: q.type === 'multiselect' ? q.scoringMode : null,
     answer: q.type === 'short-answer' ? q.answer : null,
   }))
 
@@ -75,8 +79,10 @@ export async function updateQuiz(quizId, { title, description, questions }) {
     position: index,
     type: q.type,
     text: q.text,
-    options: q.type === 'multiple-choice' ? q.options : null,
+    options: q.type === 'short-answer' ? null : q.options,
     correct_index: q.type === 'multiple-choice' ? q.correctIndex : null,
+    correct_indexes: q.type === 'multiselect' ? q.correctIndexes : null,
+    scoring_mode: q.type === 'multiselect' ? q.scoringMode : null,
     answer: q.type === 'short-answer' ? q.answer : null,
   }))
 
