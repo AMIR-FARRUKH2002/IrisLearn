@@ -254,6 +254,22 @@
   }
 }
 
+.short-answer-input {
+  width: 100%;
+}
+
+.correct-text {
+  color: #2e9e4b;
+  margin: 0;
+  font-size: 14px;
+}
+
+.incorrect-text {
+  color: #d1453b;
+  margin: 0;
+  font-size: 14px;
+}
+
 .create-quiz-actions {
   display: flex;
   justify-content: flex-end;

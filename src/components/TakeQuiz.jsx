@@ -9,10 +9,28 @@ function TakeQuiz({ quiz, onBack }) {
     setAnswers((a) => ({ ...a, [questionId]: optionIndex }))
   }
 
+  function enterAnswer(questionId, value) {
+    if (submitted) return
+    setAnswers((a) => ({ ...a, [questionId]: value }))
+  }
+
+  function isCorrectAnswer(q) {
+    if (q.type === 'short-answer') {
+      const given = (answers[q.id] || '').trim().toLowerCase()
+      return given !== '' && given === q.answer.trim().toLowerCase()
+    }
+    return answers[q.id] === q.correctIndex
+  }
+
   const score = quiz.questions.reduce(
-    (total, q) => (answers[q.id] === q.correctIndex ? total + 1 : total),
+    (total, q) => (isCorrectAnswer(q) ? total + 1 : total),
     0,
   )
+
+  const allAnswered = quiz.questions.every((q) => {
+    const a = answers[q.id]
+    return q.type === 'short-answer' ? Boolean(a && a.trim()) : a !== undefined
+  })
 
   return (
     <section className="take-quiz">
@@ -32,31 +50,47 @@ function TakeQuiz({ quiz, onBack }) {
             <h3>
               {qIndex + 1}. {q.text}
             </h3>
-            <div className="options-list">
-              {q.options.map((option, oIndex) => {
-                const isSelected = answers[q.id] === oIndex
-                const isCorrect = oIndex === q.correctIndex
-                let optionClass = 'option-choice'
-                if (submitted && isSelected) {
-                  optionClass += isCorrect ? ' correct' : ' incorrect'
-                } else if (submitted && isCorrect) {
-                  optionClass += ' correct'
-                } else if (isSelected) {
-                  optionClass += ' selected'
-                }
-                return (
-                  <button
-                    type="button"
-                    key={oIndex}
-                    className={optionClass}
-                    onClick={() => selectAnswer(q.id, oIndex)}
-                    disabled={submitted}
-                  >
-                    {option}
-                  </button>
-                )
-              })}
-            </div>
+            {q.type === 'short-answer' ? (
+              <input
+                type="text"
+                className="short-answer-input"
+                value={answers[q.id] || ''}
+                onChange={(e) => enterAnswer(q.id, e.target.value)}
+                disabled={submitted}
+                placeholder="Type your answer"
+              />
+            ) : (
+              <div className="options-list">
+                {q.options.map((option, oIndex) => {
+                  const isSelected = answers[q.id] === oIndex
+                  const isCorrect = oIndex === q.correctIndex
+                  let optionClass = 'option-choice'
+                  if (submitted && isSelected) {
+                    optionClass += isCorrect ? ' correct' : ' incorrect'
+                  } else if (submitted && isCorrect) {
+                    optionClass += ' correct'
+                  } else if (isSelected) {
+                    optionClass += ' selected'
+                  }
+                  return (
+                    <button
+                      type="button"
+                      key={oIndex}
+                      className={optionClass}
+                      onClick={() => selectAnswer(q.id, oIndex)}
+                      disabled={submitted}
+                    >
+                      {option}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
+            {submitted && q.type === 'short-answer' && (
+              <p className={isCorrectAnswer(q) ? 'correct-text' : 'incorrect-text'}>
+                Correct answer: {q.answer}
+              </p>
+            )}
           </div>
         ))}
       </div>
@@ -67,7 +101,7 @@ function TakeQuiz({ quiz, onBack }) {
             type="button"
             className="btn-primary"
             onClick={() => setSubmitted(true)}
-            disabled={Object.keys(answers).length !== quiz.questions.length}
+            disabled={!allAnswered}
           >
             Submit Answers
           </button>

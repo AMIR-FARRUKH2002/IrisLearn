@@ -1,10 +1,12 @@
 import { useState } from 'react'
 
-const emptyQuestion = () => ({
+const emptyQuestion = (type = 'multiple-choice') => ({
   id: `q_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+  type,
   text: '',
   options: ['', ''],
   correctIndex: 0,
+  answer: '',
 })
 
 function CreateQuiz({ onPublish, onCancel }) {
@@ -53,15 +55,25 @@ function CreateQuiz({ onPublish, onCancel }) {
     setQuestions((qs) => qs.filter((q) => q.id !== id))
   }
 
+  function changeQuestionType(id, type) {
+    setQuestions((qs) =>
+      qs.map((q) => (q.id === id ? { ...emptyQuestion(type), id: q.id, text: q.text } : q)),
+    )
+  }
+
   function validate() {
     if (!title.trim()) return 'Please enter a quiz title.'
     if (questions.length === 0) return 'Add at least one question.'
     for (const q of questions) {
       if (!q.text.trim()) return 'Every question needs question text.'
-      const filledOptions = q.options.filter((o) => o.trim())
-      if (filledOptions.length < 2) return 'Every question needs at least two options.'
-      if (!q.options[q.correctIndex] || !q.options[q.correctIndex].trim()) {
-        return 'Select a valid correct answer for every question.'
+      if (q.type === 'short-answer') {
+        if (!q.answer.trim()) return 'Every short answer question needs a correct answer.'
+      } else {
+        const filledOptions = q.options.filter((o) => o.trim())
+        if (filledOptions.length < 2) return 'Every question needs at least two options.'
+        if (!q.options[q.correctIndex] || !q.options[q.correctIndex].trim()) {
+          return 'Select a valid correct answer for every question.'
+        }
       }
     }
     return ''
@@ -77,11 +89,17 @@ function CreateQuiz({ onPublish, onCancel }) {
     onPublish({
       title: title.trim(),
       description: description.trim(),
-      questions: questions.map((q) => ({
-        ...q,
-        text: q.text.trim(),
-        options: q.options.map((o) => o.trim()),
-      })),
+      questions: questions.map((q) =>
+        q.type === 'short-answer'
+          ? { id: q.id, type: q.type, text: q.text.trim(), answer: q.answer.trim() }
+          : {
+              id: q.id,
+              type: q.type,
+              text: q.text.trim(),
+              options: q.options.map((o) => o.trim()),
+              correctIndex: q.correctIndex,
+            },
+      ),
     })
   }
 
@@ -127,6 +145,17 @@ function CreateQuiz({ onPublish, onCancel }) {
             </div>
 
             <label className="field">
+              <span>Question type</span>
+              <select
+                value={q.type}
+                onChange={(e) => changeQuestionType(q.id, e.target.value)}
+              >
+                <option value="multiple-choice">Multiple choice</option>
+                <option value="short-answer">Written text entry (short)</option>
+              </select>
+            </label>
+
+            <label className="field">
               <span>Question text</span>
               <input
                 type="text"
@@ -136,37 +165,49 @@ function CreateQuiz({ onPublish, onCancel }) {
               />
             </label>
 
-            <div className="options-list">
-              {q.options.map((option, oIndex) => (
-                <div className="option-row" key={oIndex}>
-                  <input
-                    type="radio"
-                    name={`correct-${q.id}`}
-                    checked={q.correctIndex === oIndex}
-                    onChange={() => updateQuestion(q.id, { correctIndex: oIndex })}
-                    title="Mark as correct answer"
-                  />
-                  <input
-                    type="text"
-                    value={option}
-                    onChange={(e) => updateOption(q.id, oIndex, e.target.value)}
-                    placeholder={`Option ${oIndex + 1}`}
-                  />
-                  {q.options.length > 2 && (
-                    <button
-                      type="button"
-                      className="btn-link"
-                      onClick={() => removeOption(q.id, oIndex)}
-                    >
-                      ✕
-                    </button>
-                  )}
-                </div>
-              ))}
-              <button type="button" className="btn-secondary" onClick={() => addOption(q.id)}>
-                + Add option
-              </button>
-            </div>
+            {q.type === 'short-answer' ? (
+              <label className="field">
+                <span>Correct answer</span>
+                <input
+                  type="text"
+                  value={q.answer}
+                  onChange={(e) => updateQuestion(q.id, { answer: e.target.value })}
+                  placeholder="Enter the expected answer"
+                />
+              </label>
+            ) : (
+              <div className="options-list">
+                {q.options.map((option, oIndex) => (
+                  <div className="option-row" key={oIndex}>
+                    <input
+                      type="radio"
+                      name={`correct-${q.id}`}
+                      checked={q.correctIndex === oIndex}
+                      onChange={() => updateQuestion(q.id, { correctIndex: oIndex })}
+                      title="Mark as correct answer"
+                    />
+                    <input
+                      type="text"
+                      value={option}
+                      onChange={(e) => updateOption(q.id, oIndex, e.target.value)}
+                      placeholder={`Option ${oIndex + 1}`}
+                    />
+                    {q.options.length > 2 && (
+                      <button
+                        type="button"
+                        className="btn-link"
+                        onClick={() => removeOption(q.id, oIndex)}
+                      >
+                        ✕
+                      </button>
+                    )}
+                  </div>
+                ))}
+                <button type="button" className="btn-secondary" onClick={() => addOption(q.id)}>
+                  + Add option
+                </button>
+              </div>
+            )}
           </div>
         ))}
       </div>
