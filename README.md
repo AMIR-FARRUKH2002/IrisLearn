@@ -23,3 +23,13 @@ V6: Modify user interface, expand card view for quiz items. Split module view in
 V7: Add functionality for users to edit and delete Learning Modules. Supabase schema updated to implement this on backend
 
 V8: Add new quiz option: multiselect with all that apply. Give user option to set scoring rule.
+
+# DEMO
+
+Video Link: https://youtu.be/knJVLq1Sewo
+
+Deployed Link: https://irislearn7022.netlify.app/
+
+# HOW TO SETUP AND RUN
+
+Simply run the command **npm run dev** inside the IrisLearn directory. Session will start on localhost.
