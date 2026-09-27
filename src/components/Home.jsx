@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import QuizCard from './QuizCard.jsx'
 
-function Home({ quizzes, onSelectQuiz, onCreateNew, currentUserId }) {
+function Home({ quizzes, onSelectQuiz, onCreateNew, currentUserId, onEditQuiz, onDeleteQuiz }) {
   const [scope, setScope] = useState('community')
   const [search, setSearch] = useState('')
 
@@ -80,6 +80,9 @@ function Home({ quizzes, onSelectQuiz, onCreateNew, currentUserId }) {
               quiz={quiz}
               onSelect={onSelectQuiz}
               showCreator={scope === 'community'}
+              isOwner={quiz.ownerId === currentUserId}
+              onEdit={onEditQuiz}
+              onDelete={onDeleteQuiz}
             />
           ))}
         </div>

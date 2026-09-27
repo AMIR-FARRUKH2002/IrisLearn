@@ -9,10 +9,22 @@ const emptyQuestion = (type = 'multiple-choice') => ({
   answer: '',
 })
 
-function CreateQuiz({ onPublish, onCancel }) {
-  const [title, setTitle] = useState('')
-  const [description, setDescription] = useState('')
-  const [questions, setQuestions] = useState([emptyQuestion()])
+function CreateQuiz({ onPublish, onCancel, initialQuiz }) {
+  const isEditing = Boolean(initialQuiz)
+  const [title, setTitle] = useState(initialQuiz?.title ?? '')
+  const [description, setDescription] = useState(initialQuiz?.description ?? '')
+  const [questions, setQuestions] = useState(() =>
+    initialQuiz
+      ? initialQuiz.questions.map((q) => ({
+          id: q.id,
+          type: q.type,
+          text: q.text,
+          options: q.type === 'multiple-choice' ? q.options : ['', ''],
+          correctIndex: q.type === 'multiple-choice' ? q.correctIndex : 0,
+          answer: q.type === 'short-answer' ? q.answer : '',
+        }))
+      : [emptyQuestion()],
+  )
   const [error, setError] = useState('')
   const [publishing, setPublishing] = useState(false)
 
@@ -114,7 +126,7 @@ function CreateQuiz({ onPublish, onCancel }) {
   return (
     <section className="create-quiz">
       <div className="home-header">
-        <h1>Create a Quiz</h1>
+        <h1>{isEditing ? 'Edit Quiz' : 'Create a Quiz'}</h1>
         <button type="button" className="btn-secondary" onClick={onCancel}>
           Cancel
         </button>
@@ -228,7 +240,7 @@ function CreateQuiz({ onPublish, onCancel }) {
 
       <div className="create-quiz-actions">
         <button type="button" className="btn-primary" onClick={handlePublish} disabled={publishing}>
-          {publishing ? 'Publishing...' : 'Publish Quiz'}
+          {publishing ? (isEditing ? 'Saving...' : 'Publishing...') : isEditing ? 'Save Changes' : 'Publish Quiz'}
         </button>
       </div>
     </section>

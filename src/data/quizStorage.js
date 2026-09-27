@@ -59,3 +59,35 @@ export async function publishQuiz({ title, description, questions }) {
 
   return loadQuizzes()
 }
+
+export async function updateQuiz(quizId, { title, description, questions }) {
+  const { error: quizError } = await supabase
+    .from('quizzes')
+    .update({ title, description })
+    .eq('id', quizId)
+  if (quizError) throw new Error(quizError.message)
+
+  const { error: deleteError } = await supabase.from('questions').delete().eq('quiz_id', quizId)
+  if (deleteError) throw new Error(deleteError.message)
+
+  const questionRows = questions.map((q, index) => ({
+    quiz_id: quizId,
+    position: index,
+    type: q.type,
+    text: q.text,
+    options: q.type === 'multiple-choice' ? q.options : null,
+    correct_index: q.type === 'multiple-choice' ? q.correctIndex : null,
+    answer: q.type === 'short-answer' ? q.answer : null,
+  }))
+
+  const { error: questionsError } = await supabase.from('questions').insert(questionRows)
+  if (questionsError) throw new Error(questionsError.message)
+
+  return loadQuizzes()
+}
+
+export async function deleteQuiz(quizId) {
+  const { error } = await supabase.from('quizzes').delete().eq('id', quizId)
+  if (error) throw new Error(error.message)
+  return loadQuizzes()
+}
