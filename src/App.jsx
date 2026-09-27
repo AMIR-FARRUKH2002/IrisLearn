@@ -3,23 +3,36 @@ import Home from './components/Home.jsx'
 import CreateQuiz from './components/CreateQuiz.jsx'
 import TakeQuiz from './components/TakeQuiz.jsx'
 import Login from './components/Login.jsx'
-import { loadQuizzes, saveQuizzes, createQuizId } from './data/quizStorage.js'
-import { getSession, setSession, clearSession } from './data/userStorage.js'
+import TopBar from './components/TopBar.jsx'
+import { loadQuizzes, publishQuiz } from './data/quizStorage.js'
+import { getCurrentUser, onAuthChange, signOut } from './data/auth.js'
 import './App.css'
 
 function App() {
-  const [quizzes, setQuizzes] = useState(() => loadQuizzes())
+  const [quizzes, setQuizzes] = useState([])
   const [view, setView] = useState('home')
   const [activeQuizId, setActiveQuizId] = useState(null)
-  const [currentUser, setCurrentUser] = useState(() => getSession())
+  const [currentUser, setCurrentUser] = useState(null)
+  const [authLoading, setAuthLoading] = useState(true)
 
   useEffect(() => {
-    saveQuizzes(quizzes)
-  }, [quizzes])
+    getCurrentUser().then((user) => {
+      setCurrentUser(user)
+      setAuthLoading(false)
+    })
+    return onAuthChange((user) => setCurrentUser(user))
+  }, [])
 
-  function handlePublish(quizDraft) {
-    const quiz = { id: createQuizId(), publishedAt: Date.now(), ...quizDraft }
-    setQuizzes((qs) => [quiz, ...qs])
+  useEffect(() => {
+    if (!currentUser) return
+    loadQuizzes()
+      .then(setQuizzes)
+      .catch((err) => console.error('Failed to load quizzes:', err.message))
+  }, [currentUser])
+
+  async function handlePublish(quizDraft) {
+    const updatedQuizzes = await publishQuiz(quizDraft)
+    setQuizzes(updatedQuizzes)
     setView('home')
   }
 
@@ -28,45 +41,58 @@ function App() {
     setView('take')
   }
 
-  function handleLogin(username) {
-    setSession(username)
-    setCurrentUser(username)
+  function handleLogin(user) {
+    setCurrentUser(user)
   }
 
-  function handleLogout() {
-    clearSession()
+  async function handleLogout() {
+    await signOut()
     setCurrentUser(null)
     setView('home')
   }
 
   const activeQuiz = quizzes.find((q) => q.id === activeQuizId)
 
+  if (authLoading) {
+    return (
+      <>
+        <TopBar />
+        <section id="center" />
+      </>
+    )
+  }
+
   if (!currentUser) {
     return (
-      <section id="center">
-        <Login onLogin={handleLogin} />
-      </section>
+      <>
+        <TopBar />
+        <section id="center">
+          <Login onLogin={handleLogin} />
+        </section>
+      </>
     )
   }
 
   return (
-    <section id="center">
-      {view === 'home' && (
-        <Home
-          quizzes={quizzes}
-          onSelectQuiz={handleSelectQuiz}
-          onCreateNew={() => setView('create')}
-          currentUser={currentUser}
-          onLogout={handleLogout}
-        />
-      )}
-      {view === 'create' && (
-        <CreateQuiz onPublish={handlePublish} onCancel={() => setView('home')} />
-      )}
-      {view === 'take' && activeQuiz && (
-        <TakeQuiz quiz={activeQuiz} onBack={() => setView('home')} />
-      )}
-    </section>
+    <>
+      <TopBar currentUser={currentUser.username} onLogout={handleLogout} />
+      <section id="center">
+        {view === 'home' && (
+          <Home
+            quizzes={quizzes}
+            onSelectQuiz={handleSelectQuiz}
+            onCreateNew={() => setView('create')}
+            currentUserId={currentUser.id}
+          />
+        )}
+        {view === 'create' && (
+          <CreateQuiz onPublish={handlePublish} onCancel={() => setView('home')} />
+        )}
+        {view === 'take' && activeQuiz && (
+          <TakeQuiz quiz={activeQuiz} onBack={() => setView('home')} />
+        )}
+      </section>
+    </>
   )
 }
 

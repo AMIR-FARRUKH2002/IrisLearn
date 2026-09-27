@@ -14,6 +14,7 @@ function CreateQuiz({ onPublish, onCancel }) {
   const [description, setDescription] = useState('')
   const [questions, setQuestions] = useState([emptyQuestion()])
   const [error, setError] = useState('')
+  const [publishing, setPublishing] = useState(false)
 
   function updateQuestion(id, changes) {
     setQuestions((qs) => qs.map((q) => (q.id === id ? { ...q, ...changes } : q)))
@@ -79,28 +80,35 @@ function CreateQuiz({ onPublish, onCancel }) {
     return ''
   }
 
-  function handlePublish() {
+  async function handlePublish() {
     const validationError = validate()
     if (validationError) {
       setError(validationError)
       return
     }
     setError('')
-    onPublish({
-      title: title.trim(),
-      description: description.trim(),
-      questions: questions.map((q) =>
-        q.type === 'short-answer'
-          ? { id: q.id, type: q.type, text: q.text.trim(), answer: q.answer.trim() }
-          : {
-              id: q.id,
-              type: q.type,
-              text: q.text.trim(),
-              options: q.options.map((o) => o.trim()),
-              correctIndex: q.correctIndex,
-            },
-      ),
-    })
+    setPublishing(true)
+    try {
+      await onPublish({
+        title: title.trim(),
+        description: description.trim(),
+        questions: questions.map((q) =>
+          q.type === 'short-answer'
+            ? { id: q.id, type: q.type, text: q.text.trim(), answer: q.answer.trim() }
+            : {
+                id: q.id,
+                type: q.type,
+                text: q.text.trim(),
+                options: q.options.map((o) => o.trim()),
+                correctIndex: q.correctIndex,
+              },
+        ),
+      })
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setPublishing(false)
+    }
   }
 
   return (
@@ -219,8 +227,8 @@ function CreateQuiz({ onPublish, onCancel }) {
       {error && <p className="error-text">{error}</p>}
 
       <div className="create-quiz-actions">
-        <button type="button" className="btn-primary" onClick={handlePublish}>
-          Publish Quiz
+        <button type="button" className="btn-primary" onClick={handlePublish} disabled={publishing}>
+          {publishing ? 'Publishing...' : 'Publish Quiz'}
         </button>
       </div>
     </section>

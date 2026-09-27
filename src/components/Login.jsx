@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { createUser, verifyUser } from '../data/userStorage.js'
+import { signIn, signUp } from '../data/auth.js'
 
 function Login({ onLogin }) {
   const [mode, setMode] = useState('login')
@@ -28,9 +28,7 @@ function Login({ onLogin }) {
     setSubmitting(true)
     try {
       const loggedInUser =
-        mode === 'signup'
-          ? await createUser(username, password)
-          : await verifyUser(username, password)
+        mode === 'signup' ? await signUp(username, password) : await signIn(username, password)
       onLogin(loggedInUser)
     } catch (err) {
       setError(err.message)
